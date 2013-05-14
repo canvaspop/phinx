@@ -4,6 +4,8 @@ use Phinx\Migration\AbstractMigration;
 
 class $className extends AbstractMigration
 {
+    private $sql = array();
+
     /**
      * Change Method.
      *
@@ -22,7 +24,9 @@ class $className extends AbstractMigration
      */
     public function up()
     {
-    
+        $this->addStatement( 'You query goes here' );
+
+        $this->run();
     }
 
     /**
@@ -30,6 +34,44 @@ class $className extends AbstractMigration
      */
     public function down()
     {
+        $this->addStatement( 'You query goes here' );
 
+        $this->run();
+    }
+
+    /**
+    * Will add a sql statement
+    */
+    private function addStatement( $query )
+    {
+        $this->sql[] = $query;
+    }
+
+    /**
+    * Will run a sql statement set
+    */
+    private function run()
+    {
+        if( empty( $this->sql ) )
+            throw new \Exception( 'You did not provide an SQL statements to run' );
+
+        $dbAdapter = $this->getAdapter();
+        $dbAdapter->beginTransaction();
+
+        try
+        {
+            foreach( $this->sql as $query )
+            {
+                $this->execute( "your query goes here" );
+            }
+
+            $dbAdapter->commitTransaction();
+        }
+        catch( \Exception $e )
+        {
+            $dbAdapter->rollbackTransaction();
+
+            throw $e;
+        }
     }
 }
