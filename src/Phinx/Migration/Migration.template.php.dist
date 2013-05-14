@@ -24,7 +24,7 @@ class $className extends AbstractMigration
      */
     public function up()
     {
-        $this->addStatement( 'You query goes here' );
+        $this->statement( 'YOUR_QUERY_GOES_HERE' );
 
         $this->run();
     }
@@ -34,7 +34,7 @@ class $className extends AbstractMigration
      */
     public function down()
     {
-        $this->addStatement( 'You query goes here' );
+        $this->statement( 'YOUR_QUERY_GOES_HERE' );
 
         $this->run();
     }
@@ -42,9 +42,11 @@ class $className extends AbstractMigration
     /**
     * Will add a sql statement
     */
-    private function addStatement( $query )
+    private function statement( $query )
     {
         $this->sql[] = $query;
+
+        return $this;
     }
 
     /**
@@ -62,7 +64,7 @@ class $className extends AbstractMigration
         {
             foreach( $this->sql as $query )
             {
-                $this->execute( "your query goes here" );
+                $this->execute( $query );
             }
 
             $dbAdapter->commitTransaction();
