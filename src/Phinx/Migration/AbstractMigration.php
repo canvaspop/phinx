@@ -3,7 +3,7 @@
  * Phinx
  *
  * (The MIT license)
- * Copyright (c) 2013 Rob Morgan
+ * Copyright (c) 2015 Rob Morgan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated * documentation files (the "Software"), to
@@ -22,21 +22,22 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
- * 
+ *
  * @package    Phinx
  * @subpackage Phinx\Migration
  */
 namespace Phinx\Migration;
 
-use Phinx\Db\Table,
-    Phinx\Db\Adapter\AdapterInterface,
-    Phinx\Migration\MigrationInterface;
+use Phinx\Db\Adapter\AdapterInterface;
+use Phinx\Db\Table;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
- * Abstract Migration Class. 
+ * Abstract Migration Class.
  *
  * It is expected that the migrations you write extend from this class.
- * 
+ *
  * This abstract class proxies the various database methods to your specified
  * adapter.
  *
@@ -48,24 +49,49 @@ abstract class AbstractMigration implements MigrationInterface
      * @var float
      */
     protected $version;
-    
+
     /**
-     * @var AdapterInterface
+     * @var \Phinx\Db\Adapter\AdapterInterface
      */
     protected $adapter;
-    
+
+    /**
+     * @var \Symfony\Component\Console\Output\OutputInterface
+     */
+    protected $output;
+
+    /**
+     * @var \Symfony\Component\Console\Input\InputInterface
+     */
+    protected $input;
+
+    /**
+     * Whether this migration is being applied or reverted
+     *
+     * @var bool
+     */
+    protected $isMigratingUp = true;
+
     /**
      * Class Constructor.
      *
      * @param int $version Migration Version
-     * @return void
-      */
-    final public function __construct($version)
+     * @param \Symfony\Component\Console\Input\InputInterface|null $input
+     * @param \Symfony\Component\Console\Output\OutputInterface|null $output
+     */
+    final public function __construct($version, InputInterface $input = null, OutputInterface $output = null)
     {
         $this->version = $version;
+        if (!is_null($input)) {
+            $this->setInput($input);
+        }
+        if (!is_null($output)) {
+            $this->setOutput($output);
+        }
+
         $this->init();
     }
-    
+
     /**
      * Initialize method.
      *
@@ -74,30 +100,31 @@ abstract class AbstractMigration implements MigrationInterface
     protected function init()
     {
     }
-    
+
     /**
      * {@inheritdoc}
      */
     public function up()
     {
     }
-    
+
     /**
      * {@inheritdoc}
      */
     public function down()
     {
     }
-    
+
     /**
      * {@inheritdoc}
      */
     public function setAdapter(AdapterInterface $adapter)
     {
         $this->adapter = $adapter;
+
         return $this;
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -109,20 +136,57 @@ abstract class AbstractMigration implements MigrationInterface
     /**
      * {@inheritdoc}
      */
+    public function setInput(InputInterface $input)
+    {
+        $this->input = $input;
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getInput()
+    {
+        return $this->input;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setOutput(OutputInterface $output)
+    {
+        $this->output = $output;
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getOutput()
+    {
+        return $this->output;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
     public function getName()
     {
         return get_class($this);
     }
-    
+
     /**
      * {@inheritdoc}
      */
     public function setVersion($version)
     {
         $this->version = $version;
+
         return $this;
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -130,7 +194,25 @@ abstract class AbstractMigration implements MigrationInterface
     {
         return $this->version;
     }
-    
+
+    /**
+     * {@inheritdoc}
+     */
+    public function setMigratingUp($isMigratingUp)
+    {
+        $this->isMigratingUp = $isMigratingUp;
+
+        return $this;
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function isMigratingUp()
+    {
+        return $this->isMigratingUp;
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -138,7 +220,7 @@ abstract class AbstractMigration implements MigrationInterface
     {
         return $this->getAdapter()->execute($sql);
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -146,7 +228,7 @@ abstract class AbstractMigration implements MigrationInterface
     {
         return $this->getAdapter()->query($sql);
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -154,7 +236,7 @@ abstract class AbstractMigration implements MigrationInterface
     {
         return $this->getAdapter()->fetchRow($sql);
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -162,7 +244,19 @@ abstract class AbstractMigration implements MigrationInterface
     {
         return $this->getAdapter()->fetchAll($sql);
     }
-    
+
+    /**
+     * {@inheritdoc}
+     */
+    public function insert($table, $data)
+    {
+        // convert to table object
+        if (is_string($table)) {
+            $table = new Table($table, [], $this->getAdapter());
+        }
+        $table->insert($data)->save();
+    }
+
     /**
      * {@inheritdoc}
      */
@@ -170,7 +264,7 @@ abstract class AbstractMigration implements MigrationInterface
     {
         $this->getAdapter()->createDatabase($name, $options);
     }
-    
+
     /**
      * {@inheritdoc}
      */
@@ -190,11 +284,11 @@ abstract class AbstractMigration implements MigrationInterface
     /**
      * {@inheritdoc}
      */
-    public function table($tableName, $options = array())
+    public function table($tableName, $options = [])
     {
         return new Table($tableName, $options, $this->getAdapter());
     }
-    
+
     /**
      * A short-hand method to drop the given database table.
      *

@@ -2,139 +2,285 @@
 
 namespace Test\Phinx\Config;
 
-class ConfigTest extends \PHPUnit_Framework_TestCase
+use \Phinx\Config\Config;
+
+/**
+ * Class ConfigTest
+ * @package Test\Phinx\Config
+ * @group config
+ */
+class ConfigTest extends AbstractConfigTest
 {
     /**
-     * Returns a sample configuration array for use with the unit tests.
-     *
-     * @return array
+     * @covers \Phinx\Config\Config::__construct
+     * @covers \Phinx\Config\Config::getConfigFilePath
      */
-    public function getConfigArray()
+    public function testConstructEmptyArguments()
     {
-        return array(
-            'default' => array(
-                'paths' => array(
-                    'migrations' => '%%PHINX_CONFIG_PATH%%/testmigrations2',
-                    'schema' => '%%PHINX_CONFIG_PATH%%/testmigrations2/schema.sql',
-                )
-            ),
-            'environments' => array(
-                'default_migration_table' => 'phinxlog',
-                'default_database' => 'testing',
-                'testing' => array(
-                    'adapter' => 'sqllite',
-                    'path' => '%%PHINX_CONFIG_PATH%%/testdb/test.db'
-                ),
-                'production' => array(
-                    'adapter' => 'mysql'
-                )
-            )
-        );
+        $config = new Config([]);
+        // this option is set to its default value when not being passed in the constructor, so we can ignore it
+        unset($config['version_order']);
+        $this->assertAttributeEmpty('values', $config);
+        $this->assertAttributeEquals(null, 'configFilePath', $config);
+        $this->assertNull($config->getConfigFilePath());
     }
-    
+
+    /**
+     * @covers \Phinx\Config\Config::__construct
+     * @covers \Phinx\Config\Config::getConfigFilePath
+     */
+    public function testConstructByArray()
+    {
+        $config = new Config($this->getConfigArray());
+        $this->assertAttributeNotEmpty('values', $config);
+        $this->assertAttributeEquals(null, 'configFilePath', $config);
+        $this->assertNull($config->getConfigFilePath());
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getEnvironments
+     */
     public function testGetEnvironmentsMethod()
     {
-        $config = new \Phinx\Config\Config($this->getConfigArray());
-        $this->assertEquals(2, sizeof($config->getEnvironments()));
+        $config = new Config($this->getConfigArray());
+        $this->assertEquals(2, count($config->getEnvironments()));
         $this->assertArrayHasKey('testing', $config->getEnvironments());
         $this->assertArrayHasKey('production', $config->getEnvironments());
     }
-    
+
+    /**
+     * @covers \Phinx\Config\Config::hasEnvironment
+     */
+    public function testHasEnvironmentDoesntHave()
+    {
+        $config = new Config([]);
+        $this->assertFalse($config->hasEnvironment('dummy'));
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::hasEnvironment
+     */
+    public function testHasEnvironmentHasOne()
+    {
+        $config = new Config($this->getConfigArray());
+        $this->assertTrue($config->hasEnvironment('testing'));
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getEnvironments
+     */
+    public function testGetEnvironmentsNotSet()
+    {
+        $config = new Config([]);
+        $this->assertNull($config->getEnvironments());
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getEnvironment
+     */
     public function testGetEnvironmentMethod()
     {
-        $config = new \Phinx\Config\Config($this->getConfigArray());
+        $config = new Config($this->getConfigArray());
         $db = $config->getEnvironment('testing');
         $this->assertEquals('sqllite', $db['adapter']);
     }
-    
+
+    /**
+     * @covers \Phinx\Config\Config::getEnvironment
+     */
     public function testHasEnvironmentMethod()
     {
         $configArray = $this->getConfigArray();
-        $config = new \Phinx\Config\Config($configArray);
+        $config = new Config($configArray);
         $this->assertTrue($config->hasEnvironment('testing'));
         $this->assertFalse($config->hasEnvironment('fakeenvironment'));
     }
-    
-    public function testGetDefaultEnvironmentMethod()
-    {
-        $path = __DIR__ . '/_files';
-        
-        // test with the config array
-        $configArray = $this->getConfigArray();
-        $config = new \Phinx\Config\Config($configArray);
-        $this->assertEquals('testing', $config->getDefaultEnvironment());
-        
-        // test using a Yaml file without the 'default_database' key.
-        // (it should default to the first one).
-        $config = \Phinx\Config\Config::fromYaml($path . '/no_default_database_key.yml');
-        $this->assertEquals('production', $config->getDefaultEnvironment());
-    }
-    
+
     /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage Could not find a default environment
+     * @covers \Phinx\Config\Config::offsetGet
+     * @covers \Phinx\Config\Config::offsetSet
+     * @covers \Phinx\Config\Config::offsetExists
+     * @covers \Phinx\Config\Config::offsetUnset
      */
-    public function testGetDefaultEnvironmentWithAnEmptyYamlFile()
-    {
-        // test using a Yaml file with no key or entries
-        $path = __DIR__ . '/_files';
-        $config = \Phinx\Config\Config::fromYaml($path . '/empty.yml');
-        $config->getDefaultEnvironment();
-    }
-    
-    /**
-     * @expectedException \RuntimeException
-     * @expectedExceptionMessage The environment configuration for 'staging' is missing
-     */
-    public function testGetDefaultEnvironmentWithAMissingEnvironmentEntry()
-    {
-        // test using a Yaml file with a 'default_database' key, but without a
-        // corresponding entry
-        $path = __DIR__ . '/_files';
-        $config = \Phinx\Config\Config::fromYaml($path . '/missing_environment_entry.yml');
-        $config->getDefaultEnvironment();
-    }
-    
-    public function testFromPHPMethod()
-    {
-        $path = __DIR__ . '/_files';
-        $config = \Phinx\Config\Config::fromPHP($path . '/valid_config.php');
-        $this->assertEquals('dev', $config->getDefaultEnvironment());
-    }
-    
-    /**
-     * @expectedException \RuntimeException
-     */
-    public function testFromPHPMethodWithoutArray()
-    {
-        $path = __DIR__ . '/_files';
-        $config = \Phinx\Config\Config::fromPHP($path . '/config_without_array.php');
-        $this->assertEquals('dev', $config->getDefaultEnvironment());
-    }
-    
-    public function testGetMigrationPathReturnsNullForNoPath()
-    {
-        $config = new \Phinx\Config\Config(array());
-        $this->assertNull($config->getMigrationPath());
-    }
-    
     public function testArrayAccessMethods()
     {
-        $config = new \Phinx\Config\Config(array());
+        $config = new Config([]);
         $config['foo'] = 'bar';
         $this->assertEquals('bar', $config['foo']);
         $this->assertTrue(isset($config['foo']));
         unset($config['foo']);
         $this->assertFalse(isset($config['foo']));
     }
-    
+
     /**
+     * @covers \Phinx\Config\Config::offsetGet
      * @expectedException \InvalidArgumentException
      * @expectedExceptionMessage Identifier "foo" is not defined.
      */
     public function testUndefinedArrayAccess()
     {
-        $config = new \Phinx\Config\Config(array());
+        $config = new Config([]);
         $config['foo'];
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getMigrationBaseClassName
+     */
+    public function testGetMigrationBaseClassNameGetsDefaultBaseClass()
+    {
+        $config = new Config([]);
+        $this->assertEquals('AbstractMigration', $config->getMigrationBaseClassName());
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getMigrationBaseClassName
+     */
+    public function testGetMigrationBaseClassNameGetsDefaultBaseClassWithNamespace()
+    {
+        $config = new Config([]);
+        $this->assertEquals('Phinx\Migration\AbstractMigration', $config->getMigrationBaseClassName(false));
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getMigrationBaseClassName
+     */
+    public function testGetMigrationBaseClassNameGetsAlternativeBaseClass()
+    {
+        $config = new Config(['migration_base_class' => 'Phinx\Migration\AlternativeAbstractMigration']);
+        $this->assertEquals('AlternativeAbstractMigration', $config->getMigrationBaseClassName());
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getMigrationBaseClassName
+     */
+    public function testGetMigrationBaseClassNameGetsAlternativeBaseClassWithNamespace()
+    {
+        $config = new Config(['migration_base_class' => 'Phinx\Migration\AlternativeAbstractMigration']);
+        $this->assertEquals('Phinx\Migration\AlternativeAbstractMigration', $config->getMigrationBaseClassName(false));
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getTemplateFile
+     * @covers \Phinx\Config\Config::getTemplateClass
+     */
+    public function testGetTemplateValuesFalseOnEmpty()
+    {
+        $config = new \Phinx\Config\Config([]);
+        $this->assertFalse($config->getTemplateFile());
+        $this->assertFalse($config->getTemplateClass());
+    }
+
+    public function testGetAliasNoAliasesEntry()
+    {
+        $config = new \Phinx\Config\Config([]);
+        $this->assertNull($config->getAlias('Short'));
+    }
+
+    public function testGetAliasEmptyAliasesEntry()
+    {
+        $config = new \Phinx\Config\Config(['aliases' => []]);
+        $this->assertNull($config->getAlias('Short'));
+    }
+
+    public function testGetAliasInvalidAliasRequest()
+    {
+        $config = new \Phinx\Config\Config(['aliases' => ['Medium' => 'Some\Long\Classname']]);
+        $this->assertNull($config->getAlias('Short'));
+    }
+
+    public function testGetAliasValidAliasRequest()
+    {
+        $config = new \Phinx\Config\Config(['aliases' => ['Short' => 'Some\Long\Classname']]);
+        $this->assertEquals('Some\Long\Classname', $config->getAlias('Short'));
+    }
+
+    public function testGetSeedPath()
+    {
+        $config = new \Phinx\Config\Config(['paths' => ['seeds' => 'db/seeds']]);
+        $this->assertEquals(['db/seeds'], $config->getSeedPaths());
+
+        $config = new \Phinx\Config\Config(['paths' => ['seeds' => ['db/seeds1', 'db/seeds2']]]);
+        $this->assertEquals(['db/seeds1', 'db/seeds2'], $config->getSeedPaths());
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getSeedPaths
+     * @expectedException \UnexpectedValueException
+     * @expectedExceptionMessage Seeds path missing from config file
+     */
+    public function testGetSeedPathThrowsException()
+    {
+        $config = new \Phinx\Config\Config([]);
+        $this->assertEquals('db/seeds', $config->getSeedPaths());
+    }
+
+    /**
+     * Checks if base class is returned correctly when specified without
+     * a namespace.
+     *
+     * @covers \Phinx\Config\Config::getMigrationBaseClassName
+     */
+    public function testGetMigrationBaseClassNameNoNamespace()
+    {
+        $config = new Config(['migration_base_class' => 'BaseMigration']);
+        $this->assertEquals('BaseMigration', $config->getMigrationBaseClassName());
+    }
+
+    /**
+     * Checks if base class is returned correctly when specified without
+     * a namespace.
+     *
+     * @covers \Phinx\Config\Config::getMigrationBaseClassName
+     */
+    public function testGetMigrationBaseClassNameNoNamespaceNoDrop()
+    {
+        $config = new Config(['migration_base_class' => 'BaseMigration']);
+        $this->assertEquals('BaseMigration', $config->getMigrationBaseClassName(false));
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::getVersionOrder
+     */
+    public function testGetVersionOrder()
+    {
+        $config = new \Phinx\Config\Config([]);
+        $config['version_order'] = \Phinx\Config\Config::VERSION_ORDER_EXECUTION_TIME;
+        $this->assertEquals(\Phinx\Config\Config::VERSION_ORDER_EXECUTION_TIME, $config->getVersionOrder());
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::isVersionOrderCreationTime
+     * @dataProvider isVersionOrderCreationTimeDataProvider
+     */
+    public function testIsVersionOrderCreationTime($versionOrder, $expected)
+    {
+        // get config stub
+        $configStub = $this->getMockBuilder('\Phinx\Config\Config')
+            ->setMethods(['getVersionOrder'])
+            ->setConstructorArgs([[]])
+            ->getMock();
+
+        $configStub->expects($this->once())
+            ->method('getVersionOrder')
+            ->will($this->returnValue($versionOrder));
+
+        $this->assertEquals($expected, $configStub->isVersionOrderCreationTime());
+    }
+
+    /**
+     * @covers \Phinx\Config\Config::isVersionOrderCreationTime
+     */
+    public function isVersionOrderCreationTimeDataProvider()
+    {
+        return [
+            'With Creation Time Version Order' =>
+            [
+                \Phinx\Config\Config::VERSION_ORDER_CREATION_TIME, true
+            ],
+            'With Execution Time Version Order' =>
+            [
+                \Phinx\Config\Config::VERSION_ORDER_EXECUTION_TIME, false
+            ],
+        ];
     }
 }

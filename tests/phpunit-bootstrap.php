@@ -8,14 +8,14 @@
  * file that was distributed with this source code.
  */
 
-if (file_exists($file = __DIR__ . '/TestConfiguration.php')) {
-    require_once $file;
-} else if (file_exists($file = __DIR__ . '/TestConfiguration.php.dist')) {
-    require_once $file;
+$autoloader = require __DIR__ . '/../src/composer_autoloader.php';
+
+if (!$autoloader()) {
+    die(
+        'You need to set up the project dependencies using the following commands:' . PHP_EOL .
+        'curl -s http://getcomposer.org/installer | php' . PHP_EOL .
+        'php composer.phar install' . PHP_EOL
+    );
 }
 
-if (file_exists($file = __DIR__ . '/../src/Phinx/autoload.php')) {
-    require_once $file;
-} else if (file_exists($file = __DIR__ . '/../src/Phinx/autoload.php.dist')) {
-    require_once $file;
-}
+require __DIR__ . '/TestConfiguration.php';

@@ -3,7 +3,7 @@
  * Phinx
  *
  * (The MIT license)
- * Copyright (c) 2013 Rob Morgan
+ * Copyright (c) 2015 Rob Morgan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated * documentation files (the "Software"), to
@@ -22,26 +22,63 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
- * 
+ *
  * @package    Phinx
  * @subpackage Phinx\Db\Adapter
  */
 namespace Phinx\Db\Adapter;
 
-use Symfony\Component\Console\Output\OutputInterface,
-    Phinx\Db\Table,
-    Phinx\Db\Table\Column,
-    Phinx\Db\Table\Index,
-    Phinx\Db\Table\ForeignKey,
-    Phinx\Migration\MigrationInterface;
+use Phinx\Db\Table;
+use Phinx\Db\Table\Column;
+use Phinx\Db\Table\ForeignKey;
+use Phinx\Db\Table\Index;
+use Phinx\Migration\MigrationInterface;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
 
 /**
  * Adapter Interface.
  *
  * @author Rob Morgan <robbym@gmail.com>
+ * @method \PDO getConnection()
  */
 interface AdapterInterface
 {
+    const PHINX_TYPE_STRING = 'string';
+    const PHINX_TYPE_CHAR = 'char';
+    const PHINX_TYPE_TEXT = 'text';
+    const PHINX_TYPE_INTEGER = 'integer';
+    const PHINX_TYPE_BIG_INTEGER = 'biginteger';
+    const PHINX_TYPE_FLOAT = 'float';
+    const PHINX_TYPE_DECIMAL = 'decimal';
+    const PHINX_TYPE_DATETIME = 'datetime';
+    const PHINX_TYPE_TIMESTAMP = 'timestamp';
+    const PHINX_TYPE_TIME = 'time';
+    const PHINX_TYPE_DATE = 'date';
+    const PHINX_TYPE_BINARY = 'binary';
+    const PHINX_TYPE_VARBINARY = 'varbinary';
+    const PHINX_TYPE_BLOB = 'blob';
+    const PHINX_TYPE_BOOLEAN = 'boolean';
+    const PHINX_TYPE_JSON = 'json';
+    const PHINX_TYPE_JSONB = 'jsonb';
+    const PHINX_TYPE_UUID = 'uuid';
+    const PHINX_TYPE_FILESTREAM = 'filestream';
+
+    // Geospatial database types
+    const PHINX_TYPE_GEOMETRY = 'geometry';
+    const PHINX_TYPE_POINT = 'point';
+    const PHINX_TYPE_LINESTRING = 'linestring';
+    const PHINX_TYPE_POLYGON = 'polygon';
+
+    // only for mysql so far
+    const PHINX_TYPE_ENUM = 'enum';
+    const PHINX_TYPE_SET = 'set';
+
+    // only for postgresql so far
+    const PHINX_TYPE_CIDR = 'cidr';
+    const PHINX_TYPE_INET = 'inet';
+    const PHINX_TYPE_MACADDR = 'macaddr';
+
     /**
      * Get all migrated version numbers.
      *
@@ -50,36 +87,106 @@ interface AdapterInterface
     public function getVersions();
 
     /**
+     * Get all migration log entries, indexed by version creation time and sorted ascendingly by the configuration's
+     * version order option
+     *
+     * @return array
+     */
+    public function getVersionLog();
+
+    /**
+     * Set adapter configuration options.
+     *
+     * @param  array $options
+     * @return \Phinx\Db\Adapter\AdapterInterface
+     */
+    public function setOptions(array $options);
+
+    /**
+     * Get all adapter options.
+     *
+     * @return array
+     */
+    public function getOptions();
+
+    /**
+     * Check if an option has been set.
+     *
+     * @param  string $name
+     * @return bool
+     */
+    public function hasOption($name);
+
+    /**
+     * Get a single adapter option, or null if the option does not exist.
+     *
+     * @param  string $name
+     * @return mixed
+     */
+    public function getOption($name);
+
+    /**
+     * Sets the console input.
+     *
+     * @param \Symfony\Component\Console\Input\InputInterface $input Input
+     * @return \Phinx\Db\Adapter\AdapterInterface
+     */
+    public function setInput(InputInterface $input);
+
+    /**
+     * Gets the console input.
+     *
+     * @return \Symfony\Component\Console\Input\InputInterface
+     */
+    public function getInput();
+
+    /**
      * Sets the console output.
      *
-     * @param OutputInterface $output Output
-     * @return AdapterInterface
+     * @param \Symfony\Component\Console\Output\OutputInterface $output Output
+     * @return \Phinx\Db\Adapter\AdapterInterface
      */
     public function setOutput(OutputInterface $output);
-    
+
     /**
      * Gets the console output.
      *
-     * @return OutputInterface
+     * @return \Symfony\Component\Console\Output\OutputInterface
      */
     public function getOutput();
-    
+
     /**
      * Records a migration being run.
      *
-     * @param MigrationInterface $migration Migration
+     * @param \Phinx\Migration\MigrationInterface $migration Migration
      * @param string $direction Direction
      * @param int $startTime Start Time
      * @param int $endTime End Time
-     * @return AdapterInterface
+     * @return \Phinx\Db\Adapter\AdapterInterface
      */
     public function migrated(MigrationInterface $migration, $direction, $startTime, $endTime);
+
+    /**
+     * Toggle a migration breakpoint.
+     *
+     * @param \Phinx\Migration\MigrationInterface $migration
+     *
+     * @return \Phinx\Db\Adapter\AdapterInterface
+     */
+    public function toggleBreakpoint(MigrationInterface $migration);
+
+    /**
+     * Reset all migration breakpoints.
+     *
+     * @return int The number of breakpoints reset
+     */
+    public function resetAllBreakpoints();
 
     /**
      * Does the schema table exist?
      *
      * @deprecated use hasTable instead.
-     * @return boolean
+     * @return bool
      */
     public function hasSchemaTable();
 
@@ -89,14 +196,14 @@ interface AdapterInterface
      * @return void
      */
     public function createSchemaTable();
-    
+
     /**
      * Returns the adapter type.
      *
      * @return string
      */
     public function getAdapterType();
-    
+
     /**
      * Initializes the database connection.
      *
@@ -104,58 +211,58 @@ interface AdapterInterface
      * @return void
      */
     public function connect();
-    
+
     /**
      * Closes the database connection.
      *
      * @return void
      */
     public function disconnect();
-    
+
     /**
      * Does the adapter support transactions?
      *
-     * @return boolean
+     * @return bool
      */
     public function hasTransactions();
-    
+
     /**
      * Begin a transaction.
      *
      * @return void
      */
     public function beginTransaction();
-    
+
     /**
      * Commit a transaction.
      *
      * @return void
      */
     public function commitTransaction();
-    
+
     /**
      * Rollback a transaction.
      *
      * @return void
      */
     public function rollbackTransaction();
-    
+
     /**
      * Executes a SQL statement and returns the number of affected rows.
-     * 
+     *
      * @param string $sql SQL
      * @return int
      */
     public function execute($sql);
-    
+
     /**
-     * Executes a SQL statement and returns the result as an array. 
+     * Executes a SQL statement and returns the result as an array.
      *
      * @param string $sql SQL
-     * @return array
+     * @return mixed
      */
     public function query($sql);
-    
+
     /**
      * Executes a query and returns only one row as an array.
      *
@@ -163,7 +270,7 @@ interface AdapterInterface
      * @return array
      */
     public function fetchRow($sql);
-    
+
     /**
      * Executes a query and returns an array of rows.
      *
@@ -171,39 +278,57 @@ interface AdapterInterface
      * @return array
      */
     public function fetchAll($sql);
-    
+
+    /**
+     * Inserts data into a table.
+     *
+     * @param \Phinx\Db\Table $table where to insert data
+     * @param array $row
+     * @return void
+     */
+    public function insert(Table $table, $row);
+
+    /**
+     * Inserts data into a table in a bulk.
+     *
+     * @param \Phinx\Db\Table $table where to insert data
+     * @param array $rows
+     * @return void
+     */
+    public function bulkinsert(Table $table, $rows);
+
     /**
      * Quotes a table name for use in a query.
-     * 
+     *
      * @param string $tableName Table Name
      * @return string
      */
     public function quoteTableName($tableName);
-    
+
     /**
      * Quotes a column name for use in a query.
-     * 
+     *
      * @param string $columnName Table Name
      * @return string
      */
     public function quoteColumnName($columnName);
-    
+
     /**
      * Checks to see if a table exists.
      *
      * @param string $tableName Table Name
-     * @return boolean
+     * @return bool
      */
     public function hasTable($tableName);
-    
+
     /**
      * Creates the specified database table.
      *
-     * @param Table $table Table
+     * @param \Phinx\Db\Table $table Table
      * @return void
      */
     public function createTable(Table $table);
-    
+
     /**
      * Renames the specified database table.
      *
@@ -212,41 +337,49 @@ interface AdapterInterface
      * @return void
      */
     public function renameTable($tableName, $newName);
-    
+
     /**
      * Drops the specified database table.
-     * 
+     *
      * @param string $tableName Table Name
      * @return void
      */
     public function dropTable($tableName);
 
     /**
+     * Truncates the specified table
+     *
+     * @param string $tableName
+     * @return void
+     */
+    public function truncateTable($tableName);
+
+    /**
      * Returns table columns
      *
      * @param string $tableName Table Name
-     * @return Column[]
+     * @return \Phinx\Db\Table\Column[]
      */
     public function getColumns($tableName);
-    
+
     /**
      * Checks to see if a column exists.
      *
      * @param string $tableName  Table Name
      * @param string $columnName Column Name
-     * @return boolean
+     * @return bool
      */
     public function hasColumn($tableName, $columnName);
-    
+
     /**
      * Adds the specified column to a database table.
-     * 
-     * @param Table  $table  Table
-     * @param Column $column Column
+     *
+     * @param \Phinx\Db\Table  $table  Table
+     * @param \Phinx\Db\Table\Column $column Column
      * @return void
      */
     public function addColumn(Table $table, Column $column);
-    
+
     /**
      * Renames the specified column.
      *
@@ -256,17 +389,17 @@ interface AdapterInterface
      * @return void
      */
     public function renameColumn($tableName, $columnName, $newColumnName);
-    
+
     /**
      * Change a table column type.
      *
      * @param string $tableName  Table Name
      * @param string $columnName Column Name
-     * @param Column $newColumn  New Column
-     * @return Table
+     * @param \Phinx\Db\Table\Column $newColumn  New Column
+     * @return \Phinx\Db\Table
      */
     public function changeColumn($tableName, $columnName, Column $newColumn);
-    
+
     /**
      * Drops the specified column.
      *
@@ -275,28 +408,37 @@ interface AdapterInterface
      * @return void
      */
     public function dropColumn($tableName, $columnName);
-    
+
     /**
      * Checks to see if an index exists.
      *
      * @param string $tableName Table Name
      * @param mixed  $columns   Column(s)
-     * @return boolean
+     * @return bool
      */
     public function hasIndex($tableName, $columns);
-    
+
+    /**
+     * Checks to see if an index specified by name exists.
+     *
+     * @param string $tableName Table Name
+     * @param string $indexName
+     * @return bool
+     */
+    public function hasIndexByName($tableName, $indexName);
+
     /**
      * Adds the specified index to a database table.
-     * 
-     * @param Table $table Table
-     * @param Index $index Index
+     *
+     * @param \Phinx\Db\Table $table Table
+     * @param \Phinx\Db\Table\Index $index Index
      * @return void
      */
     public function addIndex(Table $table, Index $index);
-    
+
     /**
      * Drops the specified index from a database table.
-     * 
+     *
      * @param string $tableName
      * @param mixed  $columns Column(s)
      * @return void
@@ -304,20 +446,29 @@ interface AdapterInterface
     public function dropIndex($tableName, $columns);
 
     /**
+     * Drops the index specified by name from a database table.
+     *
+     * @param string $tableName
+     * @param string $indexName
+     * @return void
+     */
+    public function dropIndexByName($tableName, $indexName);
+
+    /**
      * Checks to see if a foreign key exists.
      *
      * @param string   $tableName
      * @param string[] $columns    Column(s)
      * @param string   $constraint Constraint name
-     * @return boolean
+     * @return bool
      */
     public function hasForeignKey($tableName, $columns, $constraint = null);
 
     /**
      * Adds the specified foreign key to a database table.
      *
-     * @param Table      $table
-     * @param ForeignKey $foreignKey
+     * @param \Phinx\Db\Table      $table
+     * @param \Phinx\Db\Table\ForeignKey $foreignKey
      * @return void
      */
     public function addForeignKey(Table $table, ForeignKey $foreignKey);
@@ -334,19 +485,28 @@ interface AdapterInterface
 
     /**
      * Returns an array of the supported Phinx column types.
-     * 
+     *
      * @return array
      */
     public function getColumnTypes();
-    
+
+    /**
+     * Checks that the given column is of a supported type.
+     *
+     * @param  \Phinx\Db\Table\Column $column
+     * @return bool
+     */
+    public function isValidColumnType(Column $column);
+
     /**
      * Converts the Phinx logical type to the adapter's SQL type.
-     * 
-     * @param string $type Type
-     * @return string
+     *
+     * @param string $type
+     * @param int $limit
+     * @return string[]
      */
-    public function getSqlType($type);
-    
+    public function getSqlType($type, $limit = null);
+
     /**
      * Creates a new database.
      *
@@ -354,16 +514,16 @@ interface AdapterInterface
      * @param array $options Options
      * @return void
      */
-    public function createDatabase($name, $options = array());
-    
+    public function createDatabase($name, $options = []);
+
     /**
      * Checks to see if a database exists.
      *
      * @param string $name Database Name
-     * @return boolean
+     * @return bool
      */
     public function hasDatabase($name);
-    
+
     /**
      * Drops the specified database.
      *
@@ -371,4 +531,31 @@ interface AdapterInterface
      * @return void
      */
     public function dropDatabase($name);
+
+    /**
+     * Creates the specified schema or throws an exception
+     * if there is no support for it.
+     *
+     * @param  string $schemaName Schema Name
+     * @return void
+     */
+    public function createSchema($schemaName = 'public');
+
+    /**
+     * Drops the specified schema table  or throws an exception
+     * if there is no support for it.
+     *
+     * @param string $schemaName Schema name
+     * @return void
+     */
+    public function dropSchema($schemaName);
+
+    /**
+     * Cast a value to a boolean appropriate for the adapter.
+     *
+     * @param mixed $value The value to be cast
+     *
+     * @return mixed
+     */
+    public function castToBool($value);
 }
