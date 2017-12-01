@@ -3,7 +3,7 @@
  * Phinx
  *
  * (The MIT license)
- * Copyright (c) 2013 Rob Morgan
+ * Copyright (c) 2015 Rob Morgan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated * documentation files (the "Software"), to
@@ -22,18 +22,16 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
- * 
+ *
  * @package    Phinx
  * @subpackage Phinx\Console
  */
 namespace Phinx\Console\Command;
 
-use Symfony\Component\Console\Command\Command,
-    Symfony\Component\Console\Input\InputInterface,
-    Symfony\Component\Console\Input\InputArgument,
-    Symfony\Component\Console\Input\InputOption,
-    Symfony\Component\Console\Output\OutputInterface;
-    
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
+use Symfony\Component\Console\Output\OutputInterface;
+
 class Status extends AbstractCommand
 {
     /**
@@ -42,38 +40,51 @@ class Status extends AbstractCommand
     protected function configure()
     {
         parent::configure();
-         
-        $this->addOption('--environment', '-e', InputArgument::OPTIONAL, 'The target environment');
-         
+
+        $this->addOption('--environment', '-e', InputOption::VALUE_REQUIRED, 'The target environment.');
+
         $this->setName('status')
              ->setDescription('Show migration status')
-             ->setHelp(<<<EOT
+             ->addOption('--format', '-f', InputOption::VALUE_REQUIRED, 'The output format: text or json. Defaults to text.')
+             ->setHelp(
+                 <<<EOT
 The <info>status</info> command prints a list of all migrations, along with their current status
 
 <info>phinx status -e development</info>
+<info>phinx status -e development -f json</info>
+
+The <info>version_order</info> configuration option is used to determine the order of the status migrations.
 EOT
-        );         
+             );
     }
 
     /**
      * Show the migration status.
-     * 
-     * @return void
+     *
+     * @param \Symfony\Component\Console\Input\InputInterface $input
+     * @param \Symfony\Component\Console\Output\OutputInterface $output
+     * @return int 0 if all migrations are up, or an error code
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         $this->bootstrap($input, $output);
-        
+
         $environment = $input->getOption('environment');
-        
-        if (null === $environment) {
+        $format = $input->getOption('format');
+
+        if ($environment === null) {
             $environment = $this->getConfig()->getDefaultEnvironment();
             $output->writeln('<comment>warning</comment> no environment specified, defaulting to: ' . $environment);
         } else {
             $output->writeln('<info>using environment</info> ' . $environment);
         }
-        
+        if ($format !== null) {
+            $output->writeln('<info>using format</info> ' . $format);
+        }
+
+        $output->writeln('<info>ordering by </info>' . $this->getConfig()->getVersionOrder() . " time");
+
         // print the status
-        $this->getManager()->printStatus($environment);
+        return $this->getManager()->printStatus($environment, $format);
     }
 }

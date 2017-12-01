@@ -3,7 +3,7 @@
  * Phinx
  *
  * (The MIT license)
- * Copyright (c) 2013 Rob Morgan
+ * Copyright (c) 2015 Rob Morgan
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated * documentation files (the "Software"), to
@@ -22,58 +22,61 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
- * 
+ *
  * @package    Phinx
  * @subpackage Phinx\Console
  */
 namespace Phinx\Console\Command;
 
-use Symfony\Component\Console\Command\Command,
-    Symfony\Component\Console\Input\InputInterface,
-    Symfony\Component\Console\Input\InputArgument,
-    Symfony\Component\Console\Input\InputOption,
-    Symfony\Component\Console\Output\OutputInterface;
-    
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputArgument;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+
 class Init extends Command
 {
     /**
      * {@inheritdoc}
      */
-     protected function configure()
-     {
-         $this->setName('init')
-              ->setDescription('Initialize the application for Phinx')
-              ->addArgument('path', InputArgument::OPTIONAL, 'Which path should we initialize for Phinx?')
-              ->setHelp(sprintf(
-                  '%sInitializes the application for Phinx%s',
-                  PHP_EOL,
-                  PHP_EOL
-              ));
+    protected function configure()
+    {
+        $this->setName('init')
+            ->setDescription('Initialize the application for Phinx')
+            ->addArgument('path', InputArgument::OPTIONAL, 'Which path should we initialize for Phinx?')
+            ->setHelp(sprintf(
+                '%sInitializes the application for Phinx%s',
+                PHP_EOL,
+                PHP_EOL
+            ));
     }
 
     /**
      * Initializes the application.
-     * 
+     *
+     * @param \Symfony\Component\Console\Input\InputInterface $input
+     * @param \Symfony\Component\Console\Output\OutputInterface $output
+     * @throws \RuntimeException
+     * @throws \InvalidArgumentException
      * @return void
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
         // get the migration path from the config
         $path = $input->getArgument('path');
-        
-        if (null === $path) {
+
+        if ($path === null) {
             $path = getcwd();
         }
-        
+
         $path = realpath($path);
-        
-        if (!is_writeable($path)) {
+
+        if (!is_writable($path)) {
             throw new \InvalidArgumentException(sprintf(
-                'The directory "%s" is not writeable',
+                'The directory "%s" is not writable',
                 $path
             ));
         }
-        
+
         // Compute the file path
         $fileName = 'phinx.yml'; // TODO - maybe in the future we allow custom config names.
         $filePath = $path . DIRECTORY_SEPARATOR . $fileName;
@@ -84,15 +87,15 @@ class Init extends Command
                 $filePath
             ));
         }
-        
+
         // load the config template
         if (is_dir(__DIR__ . '/../../../data/Phinx')) {
             $contents = file_get_contents(__DIR__ . '/../../../data/Phinx/phinx.yml');
         } else {
             $contents = file_get_contents(__DIR__ . '/../../../../phinx.yml');
         }
-                
-        if (false === file_put_contents($filePath, $contents)) {
+
+        if (file_put_contents($filePath, $contents) === false) {
             throw new \RuntimeException(sprintf(
                 'The file "%s" could not be written to',
                 $path
