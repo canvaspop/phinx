@@ -51,7 +51,7 @@ class Create extends AbstractCommand
     {
         parent::configure();
 
-        $this->setName('create')
+        $this->setName($this->getName() ?: 'create')
             ->setDescription('Create a new migration')
             ->addArgument('name', InputArgument::REQUIRED, 'What is the name of the migration (in CamelCase)?')
             ->setHelp(sprintf(
@@ -278,7 +278,7 @@ class Create extends AbstractCommand
 
         // inject the class names appropriate to this migration
         $classes = [
-            '$namespaceDefinition' => $namespace !== null ? ('namespace ' . $namespace . ';') : '',
+            '$namespaceDefinition' => $namespace !== null ? (PHP_EOL . 'namespace ' . $namespace . ';' . PHP_EOL) : '',
             '$namespace' => $namespace,
             '$useClassName' => $this->getConfig()->getMigrationBaseClassName(false),
             '$className' => $className,
